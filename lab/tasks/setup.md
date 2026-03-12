@@ -305,7 +305,7 @@ Your agent needs an LLM that supports the OpenAI-compatible chat completions API
 4. Verify your LLM connection:
 
    ```terminal
-   python verify_llm.py
+   uv run verify_llm.py
    ```
 
    You should see:

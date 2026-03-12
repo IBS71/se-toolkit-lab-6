@@ -5,7 +5,7 @@ Run this script to check that your LLM provider is configured correctly
 and supports tool calling (function calling) before starting the agent tasks.
 
 Usage:
-    python verify_llm.py
+    uv run verify_llm.py
 """
 
 import json

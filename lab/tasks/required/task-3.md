@@ -28,7 +28,7 @@ run eval → see failure → diagnose → fix agent → re-run → next failure 
 Run `run_eval.py` from the project root:
 
 ```bash
-python run_eval.py
+uv run run_eval.py
 ```
 
 It reads your autochecker credentials from `.env` / `.env.docker.secret` (`AUTOCHECKER_API_URL`, `AUTOCHECKER_EMAIL`, `AUTOCHECKER_PASSWORD`) — same ones you configured during setup.
@@ -36,7 +36,7 @@ It reads your autochecker credentials from `.env` / `.env.docker.secret` (`AUTOC
 The script:
 
 1. Fetches one question at a time from the autochecker API.
-2. Runs `python agent.py "question"` locally.
+2. Runs `uv run agent.py "question"` locally.
 3. Checks the answer against the expected result.
 4. On pass: prints green, moves to the next question.
 5. On fail: prints red with a feedback hint, stops.
@@ -52,7 +52,7 @@ The script:
 3/26 passed
 ```
 
-Fix the failing question, then run `python run_eval.py` again.
+Fix the failing question, then run `uv run run_eval.py` again.
 
 ## Debugging workflow
 

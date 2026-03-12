@@ -24,7 +24,7 @@ sequenceDiagram
     participant LLM as LLM API<br/>(OpenRouter)
     participant Tools as Tools<br/>(files)
 
-    User->>CLI: python agent.py "..."
+    User->>CLI: uv run agent.py "..."
     CLI->>LLM: messages + tool definitions
     LLM-->>CLI: tool_calls: [{list_files, ...}]
     CLI->>Tools: execute list_files("wiki")
@@ -42,14 +42,14 @@ sequenceDiagram
 
 Your agent uses the LLM you configured during [lab setup](../setup-simple.md#19-set-up-llm-access). The credentials in `.env.agent.secret` (`LLM_API_KEY`, `LLM_API_BASE`, `LLM_MODEL`) are read by `agent.py` at runtime.
 
-> **Tip:** Run `python verify_llm.py` to confirm your LLM connection and tool calling still work before you start coding.
+> **Tip:** Run `uv run verify_llm.py` to confirm your LLM connection and tool calling still work before you start coding.
 
 ## CLI interface
 
 **Input:**
 
 ```bash
-python agent.py "How do you resolve a merge conflict?"
+uv run agent.py "How do you resolve a merge conflict?"
 ```
 
 **Output:**
@@ -194,14 +194,14 @@ Make sure:
 
 ### 6. Benchmark
 
-Run `python run_eval.py` to test your agent against wiki questions. Iterate until all Task 1 questions pass.
+Run `uv run run_eval.py` to test your agent against wiki questions. Iterate until all Task 1 questions pass.
 
 ## Acceptance criteria
 
 - [ ] Issue has the correct title.
 - [ ] `plans/task-1.md` exists with the implementation plan (committed before code).
 - [ ] `agent.py` exists in the project root.
-- [ ] `python agent.py "..."` outputs valid JSON with `answer`, `source`, and `tool_calls`.
+- [ ] `uv run agent.py "..."` outputs valid JSON with `answer`, `source`, and `tool_calls`.
 - [ ] The agent uses `read_file` and `list_files` tools to navigate the wiki.
 - [ ] The `source` field correctly identifies the wiki section that answers the question.
 - [ ] Tools do not access files outside the project directory.

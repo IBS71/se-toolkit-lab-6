@@ -22,7 +22,7 @@ sequenceDiagram
     participant LLM as LLM API<br/>(OpenRouter)
     participant Tools as Tools<br/>(files, API)
 
-    User->>CLI: python agent.py "..."
+    User->>CLI: uv run agent.py "..."
     CLI->>LLM: messages + tool definitions
     LLM-->>CLI: tool_calls: [{query_api, ...}]
     CLI->>Tools: execute query_api(GET, /items/)
@@ -39,7 +39,7 @@ Same as Task 1. The only change: `source` is now optional (system questions may 
 **Input:**
 
 ```bash
-python agent.py "How many items are in the database?"
+uv run agent.py "How many items are in the database?"
 ```
 
 **Output:**
@@ -151,7 +151,7 @@ Make sure:
 
 ### 6. Benchmark
 
-Run `python run_eval.py` — it now includes system questions on top of wiki questions. When a question fails, the benchmark shows a **feedback hint** that guides you without revealing the exact expected answer.
+Run `uv run run_eval.py` — it now includes system questions on top of wiki questions. When a question fails, the benchmark shows a **feedback hint** that guides you without revealing the exact expected answer.
 
 ## Acceptance criteria
 

@@ -6,7 +6,7 @@ runs your agent, and checks the answer locally.
 Stops at the first failure.
 
 Usage:
-    python run_eval.py
+    uv run run_eval.py
 
 Reads from .env (same credentials as the autochecker):
     AUTOCHECKER_API_URL  — e.g. https://auche.namaz.live
