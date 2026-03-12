@@ -13,7 +13,7 @@
 
 | Principle | Implication |
 |-----------|-------------|
-| Deterministic first, open-ended later | Task 1 has fully deterministic answers (wiki sections). Task 2 has mostly deterministic answers (static system facts). Task 3 adds open-ended chain questions. |
+| Deterministic first, open-ended later | Task 2 has deterministic answers (wiki sections). Task 3 starts with static system facts, then adds data-dependent queries and hidden chain questions. |
 | Learn by debugging, not by one-shotting | Students iterate against a benchmark. They see what fails, diagnose why, fix it, re-run. |
 | Specify interfaces, not implementations | We define CLI input/output format, tool schemas, eval criteria. How they build the agent is up to them. |
 | Build on what exists | The agent operates on their deployed lab 5 system. No new infrastructure. |
@@ -23,10 +23,10 @@
 | Concern | Source | Resolution |
 |---------|--------|------------|
 | Tool use behavior depends on the model | Colleague 1 | LLM setup + tool calling verification moved to Setup. Recommend specific models known to work. |
-| Weak models give inconsistent results ("pay-to-win") | Colleague 1 | Task 1 answers are deterministic (wiki sections). Model quality matters less when the answer is a fact. |
-| Answers aren't deterministic or verifiable by students | Colleague 2 | Task 1: wiki section = deterministic. Task 2: static system facts = deterministic. Data queries use range checks. |
+| Weak models give inconsistent results ("pay-to-win") | Colleague 1 | Task 2 answers are deterministic (wiki sections). Model quality matters less when the answer is a fact. |
+| Answers aren't deterministic or verifiable by students | Colleague 2 | Task 2: wiki section = deterministic. Task 3: static system facts = deterministic. Data queries use range checks. |
 | Students will hardcode if error messages show expected answers | Colleague 2 | Show feedback hints (not exact expected values). Hidden chain-of-tool questions can't be hardcoded. LLM judge for open-ended hidden questions. |
-| Tool use questions come too late in benchmark | Colleague 1 | Task 1 requires tools from the start (read_file, list_files for wiki). No "no-tools" warm-up phase. |
+| Tool use questions come too late in benchmark | Colleague 1 | Task 2 requires tools from the start (read_file, list_files for wiki). Conceptual warm-up questions (tier 1) don't need tools. |
 
 ## Learning outcomes
 
@@ -54,77 +54,70 @@ You have a running Learning Management Service from the previous lab — a backe
 
 A senior engineer explains the assignment:
 
-> 1. Build an agent that reads the project wiki and answers questions by finding the right section — the documentation agent.
-> 2. Connect the agent to your live system so it can query the API and answer questions about the actual deployment — the system agent.
-> 3. Polish the agent until it passes the full evaluation benchmark, including diagnosing bugs from application logs — the reliable agent.
+> 1. Start with the basics — call an LLM from code and get a structured JSON answer.
+> 2. Give it tools to read files and navigate the wiki — now it's an actual agent, not just a chatbot.
+> 3. Connect it to the live system, then iterate until it passes the evaluation benchmark.
 
 ## Required tasks
 
-### Task 1 — The Documentation Agent
+### Task 1 — Call an LLM from Code
 
 **Purpose:**
 
-Build an agent that answers questions by navigating the project wiki, finding the relevant section, and providing the answer — learning the agentic loop, tool calling, and CLI design in the process.
+Build the foundation: a CLI that connects to an LLM and returns structured JSON. No tools, no agentic loop — just the plumbing students will build on in Tasks 2–3.
 
 **Summary:**
 
-Students create `agent.py` in the project root. The CLI takes a question as a command-line argument and outputs JSON with three fields: `answer` (the text answer), `source` (the wiki section reference like `wiki/git-workflow.md#resolving-merge-conflicts`), and `tool_calls` (the tools used). An agent is a program that uses an LLM with tools to accomplish tasks — unlike a chatbot that just answers from its training data, an agent can read files, query APIs, and act on real information.
-
-The agent must use `read_file` and `list_files` tools to navigate the `wiki/` directory, find the section that answers the question, and return both the answer and the source reference. Students implement the agentic loop: call the LLM with tool definitions, execute any tool calls the LLM requests, feed results back, repeat until the LLM produces a final answer.
-
-Students choose an LLM provider (OpenRouter recommended), write a plan before coding, document their architecture in AGENT.md, and create regression tests. The benchmark tests ~15 wiki questions with deterministic expected sections — students can verify their own answers by reading the section.
+Students create `agent.py` in the project root. It takes a question as a CLI argument, sends it to an LLM (OpenRouter recommended, free tier), and outputs JSON with `answer` and `tool_calls` (empty array for now). Students set up LLM credentials in `.env.agent.secret`, write a plan, document in AGENT.md, and create 5 regression tests.
 
 **Acceptance criteria:**
 
-- `agent.py` returns JSON with `answer`, `source`, and `tool_calls` fields.
-- The agent uses `read_file` and `list_files` tools to navigate the wiki.
-- The `source` field correctly identifies the wiki section that answers the question.
-- The benchmark passes all wiki questions locally.
-- PR is approved and merged, closing the linked issue.
+- `agent.py` outputs valid JSON with `answer` and `tool_calls`.
+- API key stored in `.env.agent.secret`, not hardcoded.
+- AGENT.md documents the solution. 5 regression tests pass.
+- Agent works on the VM via SSH.
+- PR merged closing the linked issue.
 
 ---
 
-### Task 2 — The System Agent
+### Task 2 — The Documentation Agent
 
 **Purpose:**
 
-Connect the agent to the live system so it can query the API, inspect source code, and answer questions about the actual deployment.
+Turn the LLM wrapper into an actual agent by adding tools (`read_file`, `list_files`) and the agentic loop. The agent navigates the project wiki to answer questions.
 
 **Summary:**
 
-Students add a `query_api` tool that makes HTTP requests to the deployed backend, authenticating with `LMS_API_KEY`. The agent can now answer two kinds of questions: static system facts (framework, ports, ORM — deterministic, baked into code) and data-dependent queries (item count, scores — verified by range checks).
-
-Students extend the system prompt to help the LLM decide when to use wiki tools vs system tools. They update documentation and tests to cover the new tool. The benchmark adds ~11 system questions on top of the existing wiki questions. Wrong answers show a feedback hint that guides students without revealing the exact expected answer.
+Students implement the agentic loop: send the question + tool definitions to the LLM, execute tool calls, feed results back, repeat until a final answer. The agent uses `read_file` and `list_files` to navigate `wiki/`, find the relevant section, and return `answer`, `source` (wiki section reference), and `tool_calls`.
 
 **Acceptance criteria:**
 
-- The `query_api` tool is implemented and authenticates with the backend.
-- The agent answers static system questions correctly (framework, ports, status codes).
-- The agent answers data-dependent questions with plausible values.
-- The benchmark passes all wiki and system questions locally.
-- PR is approved and merged, closing the linked issue.
+- `read_file` and `list_files` defined as tool schemas.
+- Agentic loop executes tool calls and feeds results back.
+- `source` identifies the wiki section that answers the question.
+- Tools restricted to project directory. AGENT.md updated. 5 more tests.
+- Agent works on the VM. PR merged closing the linked issue.
 
 ---
 
-### Task 3 — Pass the Benchmark
+### Task 3 — The System Agent
 
 **Purpose:**
 
-Iterate on the agent until it passes the full evaluation benchmark, including hidden questions that require chaining tools to diagnose bugs from application logs.
+Connect the agent to the live system with `query_api`, then iterate against the evaluation benchmark until it passes ≥75%.
 
 **Summary:**
 
-Students run `python run_eval.py` to test against local questions, then submit to the autochecker bot which tests additional hidden questions. Hidden questions include multi-step challenges: find an error in the application logs, trace it to the source file, identify the bug, and suggest a fix. These require chaining tools (query logs → read source → reason about fix).
-
-The backend contains 2-3 planted non-critical bugs that produce log entries. Students iterate on their agent until it can find, trace, and diagnose these issues. Common improvements include better system prompts, improved tool descriptions, and handling of multi-step reasoning. Students document their iteration process, lessons learned, and final evaluation score in AGENT.md.
+Students add a `query_api` tool (HTTP requests to deployed backend, authenticated with `LMS_API_KEY`). The agent can now answer static system facts (framework, ports, ORM) and data-dependent queries (item count, scores). Students run `uv run run_eval.py` to test locally, then submit to the autochecker bot which tests additional hidden questions. Hidden questions include multi-step challenges requiring tool chaining. Students iterate until the benchmark passes ≥75%.
 
 **Acceptance criteria:**
 
-- `run_eval.py` passes all local questions.
-- The autochecker bot benchmark passes at least 75%.
-- The agent successfully diagnoses at least one planted bug from logs.
+- `query_api` authenticates with the backend.
+- Agent answers static system and data-dependent questions correctly.
+- `uv run run_eval.py` passes all local questions.
+- Autochecker bot benchmark ≥75%.
 - AGENT.md documents final architecture and lessons learned.
-- PR is approved and merged, closing the linked issue.
+- 5 more tests. PR merged closing the linked issue.
 
 ---
 
@@ -162,7 +155,7 @@ Student's VM:
        └── query_api(path)   → localhost:42002 (deployed backend)
 
 Autochecker:
-  SSH → python agent.py "question" → stdout JSON
+  SSH → uv run agent.py "question" → stdout JSON
   Compare answer against expected → PASS / FAIL
 ```
 
@@ -195,7 +188,7 @@ Autochecker:
 **Input:**
 
 ```bash
-python agent.py "How do you resolve a merge conflict?"
+uv run agent.py "How do you resolve a merge conflict?"
 ```
 
 **Output:**
@@ -250,14 +243,14 @@ python agent.py "How do you resolve a merge conflict?"
 
 ## Question classes
 
-### Class A: Wiki lookup (Task 1)
+### Class A: Wiki lookup (Task 2)
 
 Questions about course material. The answer lives in a wiki section.
 
 ```yaml
 - index: 0
   class: A
-  task: 1
+  task: 2
   question: "How do you resolve a merge conflict?"
   expected_source: {any_of: ["wiki/git-workflow.md#resolving-merge-conflicts",
                               "wiki/git-workflow.md#merge-conflicts"]}
@@ -277,14 +270,14 @@ Questions about course material. The answer lives in a wiki section.
 
 **Count:** ~15 in `run_eval.py`, ~5 hidden.
 
-### Class B: Static system facts (Task 2)
+### Class B: Static system facts (Task 3)
 
 Questions where the answer is baked into the code/config and never changes.
 
 ```yaml
 - index: 16
   class: B
-  task: 2
+  task: 3
   question: "What HTTP status code does the API return when you request /items/ without authentication?"
   expected: {any_of: ["401", "403"]}
   feedback: "Try making a request without the API key header and check the response status code."
@@ -302,14 +295,14 @@ Questions where the answer is baked into the code/config and never changes.
 
 **Count:** ~8 in `run_eval.py`, ~3 hidden.
 
-### Class C: Data-dependent system queries (Task 2)
+### Class C: Data-dependent system queries (Task 3)
 
 Questions about live data. Answer varies per student.
 
 ```yaml
 - index: 24
   class: C
-  task: 2
+  task: 3
   question: "How many items are currently in the database?"
   expected: {numeric_gt: 0}
   feedback: "Query the /items/ endpoint with authentication and count the results."
@@ -327,20 +320,19 @@ Questions about live data. Answer varies per student.
 
 **Count:** ~3 in `run_eval.py`, ~2 hidden.
 
-### Class D: Log analysis chain (Task 3, hidden only)
+### Class D: Bug diagnosis chain (Task 3, hidden only)
 
-Multi-step questions. Planted bugs produce log errors the agent must find, trace, and diagnose.
+Multi-step questions. The agent calls an API endpoint that triggers a planted bug, sees the error response, reads the source code to identify the cause, and explains the fix.
 
 ```yaml
-- index: 30
+- index: 34
   class: D
   task: 3
   bot_only: true
-  question: "Check the application logs for errors. What is causing the most recent error and which file is it in?"
-  expected_answer: {contains: "ZeroDivisionError"}
+  question: "Query the analytics pass-rates endpoint for a lab that doesn't exist. What error do you get, and what's the bug in the source code?"
+  expected: {any_of: ["ZeroDivisionError", "division by zero", "divide by zero"]}
   expected_source: {contains: "analytics.py"}
-  expected_fix: {any_of: ["check", "empty", "zero", "len", "guard"]}
-  feedback: "Read the error traceback in the logs. Which file and line number caused it?"
+  feedback: "Try GET /analytics/pass-rates?lab=lab-99 and read the error. Then check the source code."
   check_tools: [query_api, read_file]
 ```
 
@@ -348,16 +340,13 @@ Multi-step questions. Planted bugs produce log errors the agent must find, trace
 
 | Field | Check | Required |
 |-------|-------|----------|
-| `answer` | Contains bug identifier (`expected_answer`) | Yes |
+| `answer` | Contains bug identifier (`expected`) | Yes |
 | `source` | Contains file path (`expected_source`) | Yes |
-| `answer` | Contains fix keyword (`expected_fix`) | Optional |
-| `tool_calls` | Includes all tools from `check_tools` (chain) | Yes |
+| `tool_calls` | Includes ALL tools from `check_tools` (chain) | Yes |
 
 **On failure:** Show `feedback` (points to where to look, not the answer).
 
-**Why `source`:** The bug location (file path) is the same kind of information as the wiki section in Class A — it's *where* the answer came from. The agent puts it in `source`, keeping `answer` focused on *what* the bug is and how to fix it. This is consistent across all question classes: `source` = where, `answer` = what.
-
-**Count:** 3-5 hidden (bot eval only).
+**Count:** 2-3 hidden (bot eval only).
 
 ### Class E: LLM-judged reasoning (Task 3, hidden only)
 
@@ -389,10 +378,10 @@ Open-ended questions where keyword matching isn't sufficient.
 
 | Class | Task | `run_eval.py` | Bot-only | Checking | On failure |
 |-------|------|--------------|----------|----------|------------|
-| A: Wiki lookup | 1 | ~15 | ~5 | Source path match + tool use | Show expected source |
-| B: Static system facts | 2 | ~8 | ~3 | Keyword match + tool use | Show `feedback` hint |
-| C: Data-dependent queries | 2 | ~3 | ~2 | Numeric range + tool use | Show `feedback` hint |
-| D: Log analysis chain | 3 | 0 | 3-5 | Bug ID in `answer` + file in `source` + tool chain | Show `feedback` hint |
+| A: Wiki lookup | 2 | ~15 | ~5 | Source path match + tool use | Show expected source |
+| B: Static system facts | 3 | ~8 | ~3 | Keyword match + tool use | Show `feedback` hint |
+| C: Data-dependent queries | 3 | ~3 | ~2 | Numeric range + tool use | Show `feedback` hint |
+| D: Bug diagnosis chain | 3 | 0 | 3-5 | Bug ID in `answer` + file in `source` + tool chain | Show `feedback` hint |
 | E: LLM-judged reasoning | 3 | 0 | 3-5 | LLM judge + tool use | Show `feedback` hint |
 | **Total** | | **~26** | **~13-17** | | |
 
@@ -421,8 +410,8 @@ Open-ended questions where keyword matching isn't sufficient.
 ### `run_eval.py`
 
 ```bash
-python run_eval.py           # all questions, stop at first fail
-python run_eval.py --index 5 # single question (for debugging)
+uv run run_eval.py           # all questions, stop at first fail
+uv run run_eval.py --index 5 # single question (for debugging)
 ```
 
 ## Wiki requirements
@@ -447,19 +436,31 @@ Task 1 depends on a comprehensive wiki covering labs 1-6.
 
 ## Planted bugs (Task 3)
 
-Non-critical bugs in the backend that produce log entries but do not break functionality.
+Non-critical bugs in the backend that produce visible error responses when specific endpoints are triggered. The agent discovers them by querying the API, seeing the error, then reading the source code to diagnose the cause.
 
-| # | Bug | File | Log output | Trigger |
-|---|-----|------|-----------|---------|
-| 1 | Division by zero on empty group | `analytics.py` | `ZeroDivisionError` caught, logged | GET `/analytics/scores?group=empty-group` |
-| 2 | Unclosed resource in ETL edge case | `etl.py` | `ResourceWarning` logged | POST `/pipeline/sync` with empty response |
-| 3 | Config type mismatch (string timeout) | `config.py` | `TypeError` caught, logged | Any request after startup |
+| # | Bug | File | API behavior | Trigger |
+|---|-----|------|-------------|---------|
+| 1 | Division by zero in completion rate when no learners exist | `analytics.py` (`get_completion_rate`) | 500 with `ZeroDivisionError` | GET `/analytics/completion-rate?lab=lab-99` |
+| 2 | TypeError sorting None scores in top learners | `analytics.py` (`get_top_learners`) | 500 with `TypeError` | GET `/analytics/top-learners?lab=X` when any learner has all-NULL scores |
+
+**Discovery flow (what the agent does):**
+
+```
+query_api(GET /analytics/completion-rate?lab=lab-99)
+  → 500: {"detail": "division by zero", "type": "ZeroDivisionError", ...}
+read_file(backend/app/routers/analytics.py)
+  → finds line: rate = (passed_learners / total_learners) * 100
+  → no guard for total_learners == 0
+answer: "ZeroDivisionError — completion-rate divides by total_learners without checking for zero"
+```
+
+**Error visibility:** A custom exception handler in `main.py` returns `{"detail": ..., "type": ..., "traceback": [...]}` so the agent gets actionable error info in the API response.
 
 Requirements:
 
 - Must not break existing lab 5 functionality or autochecker checks.
-- Must produce visible log entries the agent can find.
-- Must be diagnosable by reading the source code.
+- Must produce visible error responses the agent can find via `query_api`.
+- Must be diagnosable by reading the source code with `read_file`.
 - Must have clear fixes the agent can suggest.
 
 ## Decisions
@@ -467,41 +468,48 @@ Requirements:
 | # | Decision |
 |---|----------|
 | 1 | No starter `agent.py` skeleton — students build from scratch, plan first. |
-| 2 | LLM setup in Setup task — verify tool calling before graded work. |
+| 2 | LLM setup in Task 1 — students get LLM working before adding tools. |
 | 3 | Recommend strong free models first (Llama 4 Scout, Llama 3.3 70B, Qwen 2.5 72B). |
-| 4 | Task 1 uses wiki lookup — deterministic, verifiable, teaches tools from day one. |
-| 5 | Task 1 output: answer + source — source is deterministic, answer shows understanding. |
+| 4 | Task 2 uses wiki lookup — deterministic, verifiable, teaches tools. |
+| 5 | Task 2 output: answer + source — source is deterministic, answer shows understanding. |
 | 6 | Tool call verification is loose — check tool was used, not exact args. |
 | 7 | Max 10 tool calls per question. |
 | 8 | Static facts (deterministic) + range checks for data-dependent questions. |
 | 9 | Failure feedback shows hints, not expected values (Classes B-E). |
 | 10 | Hidden chain-of-tool questions + LLM judge prevent hardcoding. |
-| 11 | Plain string input (`python agent.py "..."`). |
+| 11 | Plain string input (`uv run agent.py "..."`). |
 | 12 | `LMS_API_KEY` (backend) vs `LLM_API_KEY` (LLM provider). |
 | 13 | `.env.agent.secret` for LLM config (gitignored). |
-| 14 | 2-3 planted non-critical bugs producing log entries for Task 3. |
+| 14 | 2 planted non-critical bugs producing 500 errors for Task 3 Class D questions. |
 | 15 | LLM judge budget: ~$3 total for 60 students. |
 | 16 | `run_eval.py` supports `--index N` for single-question debugging. |
 
 ## Remaining work
 
+**Done:**
+
+- [x] Rewrite Task 1 (`task-1.md`) — call an LLM from code.
+- [x] Rewrite Task 2 (`task-2.md`) — documentation agent.
+- [x] Rewrite Task 3 (`task-3.md`) — system agent + benchmark (merged from old task 4).
+- [x] Update optional task file.
+- [x] Update README to match 3-task structure.
+- [x] Write Class B questions (static system facts via read_file/list_files, tier 2).
+- [x] Write Class C questions (data-dependent queries via query_api, tier 2).
+- [x] Add `source_match` checking to `run_eval.py` and engine.
+- [x] Update `run_eval.py` with `--index` flag and feedback display.
+- [x] Add `feedback` hints to eval questions (tier 2+).
+- [x] Update autochecker spec (`lab-06.yaml`).
+
+- [x] Implement planted bugs in backend (`completion-rate`, `top-learners` endpoints).
+- [x] Write Class D questions (2 bug diagnosis chains, bot-only).
+- [x] Add `check_tools` / tool chain checking to engine.
+- [x] Add exception handler in `main.py` for visible error responses.
+
+**Remaining:**
+
 - [ ] Audit existing wiki content — what's there, what's missing.
 - [ ] Write missing wiki sections (labs 1-6 material).
-- [ ] Rewrite Task 1 (`task-1.md`) — documentation agent.
-- [ ] Rewrite Task 2 (`task-2.md`) — system agent.
-- [ ] Rewrite Task 3 (`task-3.md`) — pass the benchmark with planted bugs.
-- [ ] Update setup task — add LLM setup and verification script.
-- [ ] Create verification script (`verify_llm.py`).
-- [ ] Write Class A questions (wiki lookup, ~20).
-- [ ] Write Class B questions (static system facts, ~11).
-- [ ] Write Class C questions (data-dependent queries, ~5).
-- [ ] Write Class D questions (log analysis chains, ~5).
-- [ ] Write Class E questions (LLM-judged reasoning, ~5).
-- [ ] Implement planted bugs in backend.
-- [ ] Add `source_match` checking to `run_eval.py` and engine.
-- [ ] Add `tool_chain` checking to engine.
+- [ ] Review eval questions against current task structure (tier 1 conceptual questions may need updating).
+- [ ] Write Class E questions (LLM-judged reasoning, ~3-5 hidden).
 - [ ] Add `llm_judge` checking to engine (with budget control).
-- [ ] Update autochecker spec (`lab-06.yaml`).
-- [ ] Update `run_eval.py` with `--index` flag and feedback display.
-- [ ] Update README to match v2 design.
-- [ ] Update optional task file.
+- [ ] Deploy updated backend with planted bugs to student VMs.

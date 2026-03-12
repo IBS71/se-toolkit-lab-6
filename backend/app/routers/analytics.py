@@ -182,3 +182,73 @@ async def get_groups(
         }
         for r in rows
     ]
+
+
+@router.get("/completion-rate")
+async def get_completion_rate(
+    lab: str = Query(..., description="Lab identifier, e.g. 'lab-01'"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Completion rate for a given lab — percentage of learners who scored >= 60."""
+    _, item_ids = await _find_lab_and_tasks(lab, session)
+
+    # Count distinct learners with any interaction
+    total_stmt = (
+        select(func.count(func.distinct(InteractionLog.learner_id)))
+        .where(InteractionLog.item_id.in_(item_ids))
+    )
+    total_learners = (await session.exec(total_stmt)).one()
+
+    # Count distinct learners who scored >= 60
+    passed_stmt = (
+        select(func.count(func.distinct(InteractionLog.learner_id)))
+        .where(
+            InteractionLog.item_id.in_(item_ids),
+            InteractionLog.score >= 60,
+        )
+    )
+    passed_learners = (await session.exec(passed_stmt)).one()
+
+    rate = (passed_learners / total_learners) * 100
+
+    return {
+        "lab": lab,
+        "completion_rate": round(rate, 1),
+        "passed": passed_learners,
+        "total": total_learners,
+    }
+
+
+@router.get("/top-learners")
+async def get_top_learners(
+    lab: str = Query(..., description="Lab identifier, e.g. 'lab-01'"),
+    limit: int = Query(default=10, description="Number of top learners to return"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Top learners by average score for a given lab."""
+    _, item_ids = await _find_lab_and_tasks(lab, session)
+    if not item_ids:
+        return []
+
+    stmt = (
+        select(
+            InteractionLog.learner_id,
+            func.avg(InteractionLog.score).label("avg_score"),
+            func.count().label("attempts"),
+        )
+        .where(InteractionLog.item_id.in_(item_ids))
+        .group_by(InteractionLog.learner_id)
+    )
+
+    rows = (await session.exec(stmt)).all()
+
+    ranked = sorted(rows, key=lambda r: r.avg_score, reverse=True)
+
+    return [
+        {
+            "learner_id": r.learner_id,
+            "avg_score": round(r.avg_score, 1),
+            "attempts": r.attempts,
+        }
+        for r in ranked[:limit]
+    ]
