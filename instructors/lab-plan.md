@@ -519,13 +519,10 @@ This is a better model of real-world debugging (errors are often silent to the u
 - [x] Add `llm_judge` checking to engine (uses OpenRouter, llama-4-scout:free).
 - [x] Deploy autochecker with Class D/E questions and LLM judge.
 
-**Remaining (high priority):**
+**Remaining:**
 
 - [ ] **Replace tier 1 conceptual questions with Class A wiki-lookup questions.** Current tier 1 (index 0-16) tests LLM knowledge, not wiki tools. Need questions with `expected_source` and `check_tools: [read_file]` that verify the documentation agent actually navigates the wiki. Requires wiki content to exist first.
 - [ ] Audit existing wiki content — what's there, what's missing.
 - [ ] Write missing wiki sections (labs 1-6 material).
-
-**Remaining:**
-
 - [ ] Deploy updated backend with planted bugs to student VMs.
-- [ ] Add logging framework to backend + `/logs` endpoint (future — see planted bugs section).
+- [ ] Add logging framework to backend + `/logs` endpoint (see planted bugs section).
