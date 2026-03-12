@@ -1,23 +1,25 @@
-# The System Agent
+# The Documentation Agent
 
-In Task 1 you built an agent that reads documentation. But documentation can be outdated — the real system is the source of truth. In this task you will give your agent a new tool (`query_api`) so it can talk to your deployed backend, and teach it to answer two new kinds of questions: static system facts (framework, ports, status codes) and data-dependent queries (item count, scores).
+In Task 1 you built a CLI that calls an LLM — but it can only answer from the knowledge baked into its training data or your system prompt. It cannot look at your actual code or read your documentation. That is the difference between a chatbot and an **agent**: an agent has **tools** — functions it can call to interact with the real world, then reason about the results.
+
+In this task you will give your agent two tools (`read_file`, `list_files`) and build the **agentic loop**: the LLM decides which tool to call, your code executes it, feeds the result back, and the LLM decides what to do next — call another tool or give the final answer. The agent will navigate the project wiki to answer questions.
 
 ## [Git workflow](../../../wiki/git-workflow.md)
 
-1. Create an issue titled `[Task] The System Agent`.
+1. Create an issue titled `[Task] The Documentation Agent`.
 2. Pull latest `main` from `origin` and `upstream`.
-3. Create a branch from `main` (e.g., `task/system-agent`).
+3. Create a branch from `main` (e.g., `task/documentation-agent`).
 4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
 5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #2`).
 6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
 
 ## What you will build
 
-You will add a `query_api` tool to the agent you built in Task 1. The agent can now reach your deployed backend in addition to reading files.
+An agentic loop: the LLM navigates the project wiki using tools, finds the section that answers the question, and returns the answer with a source reference.
 
 ```mermaid
 flowchart TD
-    Q["uv run agent.py 'How many items are in the database?'"]
+    Q["uv run agent.py 'How do you resolve a merge conflict?'"]
 
     subgraph agent.py
         Send["Send question to LLM"] --> Decision{"LLM response?"}
@@ -27,54 +29,82 @@ flowchart TD
     end
 
     Q --> Send
-    Exec -.->|"read_file, list_files"| Files["wiki/ and source code"]
-    Exec -.->|"query_api(GET, /items/)"| API["Backend API\nlocalhost:42002"]
+    Exec -.->|"list_files('wiki')"| Wiki["wiki/ files"]
+    Exec -.->|"read_file('wiki/git-workflow.md')"| Wiki
     Send -.-> LLM["LLM API (OpenRouter)"]
-    Done --> Out["{answer, tool_calls}"]
+    Done --> Out["{answer, source, tool_calls}"]
 ```
 
 ## CLI interface
 
-Same as Task 1. The only change: `source` is now optional (system questions may not have a wiki source).
+Same as Task 1, with two additions: `source` field and populated `tool_calls`.
 
 **Input:**
 
 ```bash
-uv run agent.py "How many items are in the database?"
+uv run agent.py "How do you resolve a merge conflict?"
 ```
 
 **Output:**
 
 ```json
 {
-  "answer": "There are 120 items in the database.",
+  "answer": "Edit the conflicting file, choose which changes to keep, then stage and commit.",
+  "source": "wiki/git-workflow.md#resolving-merge-conflicts",
   "tool_calls": [
-    {"tool": "query_api", "args": {"method": "GET", "path": "/items/"}, "result": "{\"status_code\": 200, ...}"}
+    {"tool": "list_files", "args": {"path": "wiki"}, "result": "git-workflow.md\n..."},
+    {"tool": "read_file", "args": {"path": "wiki/git-workflow.md"}, "result": "..."}
   ]
 }
 ```
 
-## New tool
+**Fields:**
 
-You must implement one new tool and register it as a function-calling schema in your LLM request.
+- `answer` (string, required) — the agent's answer to the question.
+- `source` (string, required) — the wiki section reference (e.g., `wiki/git-workflow.md#resolving-merge-conflicts`).
+- `tool_calls` (array, required) — all tool calls made. Each entry has `tool`, `args`, and `result`.
 
-### `query_api`
+**Rules (same as Task 1):**
 
-Call your deployed backend API.
+- Only valid JSON goes to stdout. All debug/progress output goes to **stderr**.
+- The agent must respond within 60 seconds.
+- Maximum 10 tool calls per question.
+- Exit code 0 on success.
 
-- **Parameters:** `method` (string — GET, POST, etc.), `path` (string — e.g., `/items/`), `body` (string, optional — JSON request body).
-- **Returns:** JSON string with `status_code` and `body`.
-- **Authentication:** use `LMS_API_KEY` from `.env.docker.secret` (the backend key, not the LLM key).
+## Required tools
 
-> **Note:** Two distinct keys: `LMS_API_KEY` (in `.env.docker.secret`) protects your backend endpoints. `LLM_API_KEY` (in `.env.agent.secret`) authenticates with your LLM provider. Don't mix them up.
+You must implement two tools and register them as function-calling schemas in your LLM request.
 
-## System prompt updates
+### `read_file`
 
-Update your system prompt so the LLM knows:
+Read a file from the project repository.
 
-- When to use wiki tools (questions about course concepts, documentation).
-- When to use `query_api` (questions about the running system, live data, status codes).
-- When to use `read_file` on source code (questions about implementation details like which framework, ORM, etc.).
+- **Parameters:** `path` (string) — relative path from project root.
+- **Returns:** file contents as a string, or an error message if the file doesn't exist.
+- **Security:** must not read files outside the project directory (no `../` traversal).
+
+### `list_files`
+
+List files and directories at a given path.
+
+- **Parameters:** `path` (string) — relative directory path from project root.
+- **Returns:** newline-separated listing of entries.
+- **Security:** must not list directories outside the project directory.
+
+## The agentic loop
+
+Your agent should follow this pattern:
+
+1. Send the user's question + tool definitions to the LLM.
+2. If the LLM responds with `tool_calls` → execute each tool, append results as `tool` role messages, go to step 1.
+3. If the LLM responds with a text message (no tool calls) → that's the final answer. Extract the answer and source, output JSON and exit.
+4. If you hit 10 tool calls → stop looping, use whatever answer you have.
+
+Your system prompt should tell the LLM:
+
+- It is a documentation agent that answers questions using the project wiki.
+- It should use `list_files` to discover wiki files, then `read_file` to find the answer.
+- It must include the source reference (file path + section anchor) in its response.
 
 ## Deliverables
 
@@ -82,89 +112,86 @@ Update your system prompt so the LLM knows:
 
 Before writing code, create `plans/task-2.md`. Describe:
 
-- How you will define the `query_api` tool schema.
-- How you will handle authentication (`LMS_API_KEY`).
-- How you will update the system prompt so the LLM decides between wiki and system tools.
+- How you will define tool schemas (JSON format for the LLM).
+- How you will implement the agentic loop (detect tool calls, execute, feed back).
+- How you will handle security (path restriction).
 
 Commit:
 
 ```text
-docs: add implementation plan for system agent
+docs: add implementation plan for documentation agent
 ```
 
-### 2. Tool and agent updates (update `agent.py`)
+### 2. Tools and agentic loop (update `agent.py`)
 
 Update `agent.py` to:
 
-- Define `query_api` as a function-calling schema.
-- Implement the `query_api` function with authentication.
-- Update the system prompt for system questions.
+- Define `read_file` and `list_files` as function-calling schemas.
+- Implement the agentic loop (tool call → execute → feed result → repeat).
+- Navigate the `wiki/` directory to find answers.
+- Return JSON with `answer`, `source`, and `tool_calls` fields.
 
 Commit:
 
 ```text
-feat: add query_api tool for system queries
+feat: implement documentation agent with wiki tools
 ```
 
 ### 3. Documentation (update `AGENT.md`)
 
 Update `AGENT.md` to document:
 
-- **Tools:** what `query_api` does, its parameters, and authentication.
-- **System prompt updates:** how the LLM decides between wiki and system tools.
-- **Configuration:** the `LMS_API_KEY` environment variable needed for `query_api`.
+- **Tools:** what each tool does, its parameters, and security constraints.
+- **Agentic loop:** how the loop works (when it calls tools, when it stops).
+- **System prompt strategy:** how you guide the LLM to navigate the wiki.
 
 Commit:
 
 ```text
-docs: update agent documentation with system tools
+docs: update agent documentation with tool calling
 ```
 
 ### 4. Tests (5 tests)
 
-Add 5 regression tests that verify tool calling works. Each test should:
+Add 5 regression tests that verify the documentation agent works. Each test should:
 
 - Run `agent.py` as a subprocess with a question that requires a tool.
 - Parse the stdout JSON.
 - Check that `tool_calls` is non-empty and contains the expected tool name.
-- Check that the answer is reasonable.
+- Check that the `source` field points to a reasonable wiki section.
 
 Example test questions:
 
-- `"What framework does the backend use?"` → expects `read_file` in tool_calls.
-- `"What files are in the backend/app/routers/ directory?"` → expects `list_files` in tool_calls.
-- `"How many items are in the database?"` → expects `query_api` in tool_calls.
+- `"How do you resolve a merge conflict?"` → expects `read_file` in tool_calls, `wiki/git-workflow.md` in source.
+- `"What files are in the wiki?"` → expects `list_files` in tool_calls.
+- `"What is a Docker volume?"` → expects `read_file` in tool_calls, `wiki/docker` in source.
 
 Commit:
 
 ```text
-test: add regression tests for system agent tools
+test: add regression tests for documentation agent
 ```
 
 ### 5. Deployment
 
-Deploy the updated agent to your VM.
+Deploy the updated agent to your VM. The autochecker will SSH in and run questions that require tools.
 
 Make sure:
 
-- Both `.env.agent.secret` (LLM key) and `.env.docker.secret` (backend API key) are configured.
-- The backend is running and reachable from `agent.py`.
-
-### 6. Benchmark
-
-Run `uv run run_eval.py` — it now includes system questions on top of wiki questions. When a question fails, the benchmark shows a **feedback hint** that guides you without revealing the exact expected answer.
+- The project repo is accessible to `agent.py` on the VM.
+- `.env.agent.secret` is configured on the VM (same LLM credentials as your local setup).
 
 ## Acceptance criteria
 
 - [ ] Issue has the correct title.
 - [ ] `plans/task-2.md` exists with the implementation plan (committed before code).
-- [ ] `agent.py` defines `query_api` as a function-calling schema.
-- [ ] `query_api` authenticates with `LMS_API_KEY`.
-- [ ] The agent answers static system questions correctly (framework, ports, status codes).
-- [ ] The agent answers data-dependent questions with plausible values.
-- [ ] `AGENT.md` documents the `query_api` tool and system prompt updates.
+- [ ] `agent.py` defines `read_file` and `list_files` as tool schemas.
+- [ ] The agentic loop executes tool calls and feeds results back to the LLM.
+- [ ] `tool_calls` in the output is populated when tools are used.
+- [ ] The `source` field correctly identifies the wiki section that answers the question.
+- [ ] Tools do not access files outside the project directory.
+- [ ] `AGENT.md` documents the tools and agentic loop.
 - [ ] 5 tool-calling regression tests exist and pass.
 - [ ] The agent works on the VM via SSH.
-- [ ] The benchmark passes all Task 1 and Task 2 questions locally.
 - [ ] PR is approved and merged.
 - [ ] Issue is closed by the PR.
