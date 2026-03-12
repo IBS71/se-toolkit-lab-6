@@ -4,15 +4,6 @@ In Task 1 you built a CLI that calls an LLM — but it can only answer from the 
 
 In this task you will give your agent two tools (`read_file`, `list_files`) and build the **agentic loop**: the LLM decides which tool to call, your code executes it, feeds the result back, and the LLM decides what to do next — call another tool or give the final answer. The agent will navigate the project wiki to answer questions.
 
-## [Git workflow](../../../wiki/git-workflow.md)
-
-1. Create an issue titled `[Task] The Documentation Agent`.
-2. Pull latest `main` from `origin` and `upstream`.
-3. Create a branch from `main` (e.g., `task/documentation-agent`).
-4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
-5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #2`).
-6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
-
 ## What you will build
 
 An agentic loop: the LLM navigates the project wiki using tools, finds the section that answers the question, and returns the answer with a source reference.
@@ -183,7 +174,6 @@ Make sure:
 
 ## Acceptance criteria
 
-- [ ] Issue has the correct title.
 - [ ] `plans/task-2.md` exists with the implementation plan (committed before code).
 - [ ] `agent.py` defines `read_file` and `list_files` as tool schemas.
 - [ ] The agentic loop executes tool calls and feeds results back to the LLM.
@@ -193,5 +183,4 @@ Make sure:
 - [ ] `AGENT.md` documents the tools and agentic loop.
 - [ ] 5 tool-calling regression tests exist and pass.
 - [ ] The agent works on the VM via SSH.
-- [ ] PR is approved and merged.
-- [ ] Issue is closed by the PR.
+- [ ] [Git workflow](../../../wiki/git-workflow.md): issue `[Task] The Documentation Agent`, branch, PR with `Closes #...`, partner approval, merge.

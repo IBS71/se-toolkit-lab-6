@@ -2,15 +2,6 @@
 
 In Task 2 you built an agent that reads documentation. But documentation can be outdated — the real system is the source of truth. In this task you will give your agent a new tool (`query_api`) so it can talk to your deployed backend, and teach it to answer two new kinds of questions: static system facts (framework, ports, status codes) and data-dependent queries (item count, scores).
 
-## [Git workflow](../../../wiki/git-workflow.md)
-
-1. Create an issue titled `[Task] The System Agent`.
-2. Pull latest `main` from `origin` and `upstream`.
-3. Create a branch from `main` (e.g., `task/system-agent`).
-4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
-5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #3`).
-6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
-
 ## What you will build
 
 You will add a `query_api` tool to the agent you built in Task 2. The agent can now reach your deployed backend in addition to reading files.
@@ -156,7 +147,6 @@ Run `uv run run_eval.py` — it now includes system questions on top of wiki que
 
 ## Acceptance criteria
 
-- [ ] Issue has the correct title.
 - [ ] `plans/task-3.md` exists with the implementation plan (committed before code).
 - [ ] `agent.py` defines `query_api` as a function-calling schema.
 - [ ] `query_api` authenticates with `LMS_API_KEY`.
@@ -166,5 +156,4 @@ Run `uv run run_eval.py` — it now includes system questions on top of wiki que
 - [ ] 5 tool-calling regression tests exist and pass.
 - [ ] The agent works on the VM via SSH.
 - [ ] The benchmark passes all Task 2 and Task 3 questions locally.
-- [ ] PR is approved and merged.
-- [ ] Issue is closed by the PR.
+- [ ] [Git workflow](../../../wiki/git-workflow.md): issue `[Task] The System Agent`, branch, PR with `Closes #...`, partner approval, merge.

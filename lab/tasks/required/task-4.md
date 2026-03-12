@@ -2,15 +2,6 @@
 
 Iterate on your agent until it passes the evaluation benchmark.
 
-## [Git workflow](../../../wiki/git-workflow.md)
-
-1. Create an issue titled `[Task] Pass the Benchmark`.
-2. Pull latest `main` from `origin` and `upstream`.
-3. Create a branch from `main` (e.g., `task/pass-the-benchmark`).
-4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
-5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #4`).
-6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
-
 ## What you will do
 
 Run the evaluation benchmark, examine failures, fix your agent, and repeat. The benchmark tests your agent with questions about the course material and your deployed system.
@@ -132,11 +123,9 @@ You need at least **75%** of all questions (shared + hidden) to pass.
 
 ## Acceptance criteria
 
-- [ ] Issue has the correct title.
 - [ ] `plans/task-4.md` exists with the initial diagnosis and strategy.
 - [ ] `run_eval.py` passes all local questions.
 - [ ] `AGENT.md` documents the final architecture and lessons learned (at least 200 words).
 - [ ] Regression tests are updated.
 - [ ] The agent passes the autochecker bot benchmark (≥75%).
-- [ ] PR is approved and merged.
-- [ ] Issue is closed by the PR.
+- [ ] [Git workflow](../../../wiki/git-workflow.md): issue `[Task] Pass the Benchmark`, branch, PR with `Closes #...`, partner approval, merge.
