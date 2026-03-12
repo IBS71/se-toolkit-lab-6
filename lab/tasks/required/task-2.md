@@ -1,18 +1,19 @@
 # The System Agent
 
-<h4>Time</h4>
-
-~90 min
-
-<h4>Purpose</h4>
-
-Connect the agent to your live system so it can query the API and answer questions about the actual deployment.
-
-<h4>Context</h4>
-
 In Task 1 you built an agent that reads documentation. But documentation can be outdated — the real system is the source of truth. In this task you will give your agent a new tool (`query_api`) so it can talk to your deployed backend, and teach it to answer two new kinds of questions: static system facts (framework, ports, status codes) and data-dependent queries (item count, scores).
 
-<h4>Diagram</h4>
+## [Git workflow](../../../wiki/git-workflow.md)
+
+1. Create an issue titled `[Task] The System Agent`.
+2. Pull latest `main` from `origin` and `upstream`.
+3. Create a branch from `main` (e.g., `task/system-agent`).
+4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
+5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #2`).
+6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
+
+## What you will build
+
+A system-aware agent: the LLM can now query your deployed backend API in addition to reading files and the wiki.
 
 ```mermaid
 sequenceDiagram
@@ -31,84 +32,42 @@ sequenceDiagram
     CLI->>User: {"answer": "...", "tool_calls": [...]}
 ```
 
-<h4>Table of contents</h4>
+## CLI interface
 
-- [1. Steps](#1-steps)
-  - [1.1. Follow the `Git workflow`](#11-follow-the-git-workflow)
-  - [1.2. Create a `Lab Task` issue](#12-create-a-lab-task-issue)
-  - [1.3. Write a plan](#13-write-a-plan)
-  - [1.4. Add the `query_api` tool](#14-add-the-query_api-tool)
-    - [1.4.1. Define the tool schema](#141-define-the-tool-schema)
-    - [1.4.2. Implement the tool](#142-implement-the-tool)
-  - [1.5. Update the system prompt](#15-update-the-system-prompt)
-  - [1.6. Test with the benchmark](#16-test-with-the-benchmark)
-  - [1.7. Update documentation](#17-update-documentation)
-  - [1.8. Write regression tests](#18-write-regression-tests)
-  - [1.9. Deploy to your VM](#19-deploy-to-your-vm)
-  - [1.10. Finish the task](#110-finish-the-task)
-  - [1.11. Check the task using the autochecker](#111-check-the-task-using-the-autochecker)
-- [2. Acceptance criteria](#2-acceptance-criteria)
+Same as Task 1. The only change: `source` is now optional (system questions may not have a wiki source).
 
-## 1. Steps
+**Input:**
 
-### 1.1. Follow the `Git workflow`
-
-Follow the [`Git workflow`](../../../wiki/git-workflow.md) to complete this task.
-
-### 1.2. Create a `Lab Task` issue
-
-Title: `[Task] The System Agent`
-
-### 1.3. Write a plan
-
-Before writing code, create `plans/task-2.md`. Describe:
-
-- How you will define the `query_api` tool schema.
-- How you will handle authentication (`LMS_API_KEY`).
-- How you will update the system prompt so the LLM knows when to use wiki tools vs the API tool.
-
-Commit:
-
-```text
-docs: add implementation plan for system agent
+```bash
+python agent.py "How many items are in the database?"
 ```
 
-### 1.4. Add the `query_api` tool
+**Output:**
 
-- [1.4.1. Define the tool schema](#141-define-the-tool-schema)
-- [1.4.2. Implement the tool](#142-implement-the-tool)
-
-#### 1.4.1. Define the tool schema
-
-Add `query_api` to your tool definitions in the LLM API request.
-
-**`query_api`** — Call the deployed backend API.
-
-- **Parameters:**
-  - `method` (string) — HTTP method (GET, POST, etc.).
-  - `path` (string) — API path (e.g., `/items/`).
-  - `body` (string, optional) — `JSON` request body.
-- **Returns:** `JSON` string with `status_code` and `body`.
-
-#### 1.4.2. Implement the tool
-
-Implement the `query_api` function. It should:
-
-1. Read `LMS_API_KEY` from `.env.docker.secret`.
-2. Make an HTTP request to the backend at `http://localhost:42002` (or a configurable base URL).
-3. Include the `Authorization: Bearer <LMS_API_KEY>` header.
-4. Return the response as `JSON` with `status_code` and `body` fields.
-
-> [!NOTE]
-> **Two distinct keys:** `LMS_API_KEY` (in `.env.docker.secret`) protects your backend endpoints. `LLM_API_KEY` (in `.env.agent.secret`) authenticates with your LLM provider. Don't mix them up.
-
-Commit:
-
-```text
-feat: add query_api tool for system queries
+```json
+{
+  "answer": "There are 120 items in the database.",
+  "tool_calls": [
+    {"tool": "query_api", "args": {"method": "GET", "path": "/items/"}, "result": "{\"status_code\": 200, ...}"}
+  ]
+}
 ```
 
-### 1.5. Update the system prompt
+## New tool
+
+You must implement one new tool and register it as a function-calling schema in your LLM request.
+
+### `query_api`
+
+Call your deployed backend API.
+
+- **Parameters:** `method` (string — GET, POST, etc.), `path` (string — e.g., `/items/`), `body` (string, optional — JSON request body).
+- **Returns:** JSON string with `status_code` and `body`.
+- **Authentication:** use `LMS_API_KEY` from `.env.docker.secret` (the backend key, not the LLM key).
+
+> **Note:** Two distinct keys: `LMS_API_KEY` (in `.env.docker.secret`) protects your backend endpoints. `LLM_API_KEY` (in `.env.agent.secret`) authenticates with your LLM provider. Don't mix them up.
+
+## System prompt updates
 
 Update your system prompt so the LLM knows:
 
@@ -116,27 +75,37 @@ Update your system prompt so the LLM knows:
 - When to use `query_api` (questions about the running system, live data, status codes).
 - When to use `read_file` on source code (questions about implementation details like which framework, ORM, etc.).
 
-### 1.6. Test with the benchmark
+## Deliverables
 
-Run the benchmark again. It now includes system questions in addition to wiki questions:
+### 1. Plan (`plans/task-2.md`)
 
-```terminal
-python run_eval.py
+Before writing code, create `plans/task-2.md`. Describe:
+
+- How you will define the `query_api` tool schema.
+- How you will handle authentication (`LMS_API_KEY`).
+- How you will update the system prompt so the LLM decides between wiki and system tools.
+
+Commit:
+
+```text
+docs: add implementation plan for system agent
 ```
 
-New question types you will see:
+### 2. Tool and agent updates (update `agent.py`)
 
-- **Static system facts:** "What framework does the backend use?" — the answer is in the source code and never changes.
-- **Data-dependent queries:** "How many items are in the database?" — the answer depends on your data.
+Update `agent.py` to:
 
-When a question fails, the benchmark shows a **feedback hint** that guides you toward the right approach without revealing the exact expected answer:
+- Define `query_api` as a function-calling schema.
+- Implement the `query_api` function with authentication.
+- Update the system prompt for system questions.
 
+Commit:
+
+```text
+feat: add query_api tool for system queries
 ```
-  ✗ [18/26] What HTTP status code does the API return without authentication?
-    feedback: Try making a request without the API key header and check the response status code.
-```
 
-### 1.7. Update documentation
+### 3. Documentation (update `AGENT.md`)
 
 Update `AGENT.md` to document:
 
@@ -150,14 +119,14 @@ Commit:
 docs: update agent documentation with system tools
 ```
 
-### 1.8. Write regression tests
+### 4. Tests (5 tests)
 
-Add 5 regression tests for tool calling. Each test should:
+Add 5 regression tests that verify tool calling works. Each test should:
 
-1. Run `agent.py` as a subprocess with a question that requires a tool.
-2. Parse the stdout `JSON`.
-3. Check that `tool_calls` is non-empty and contains the expected tool name.
-4. Check that the answer is reasonable.
+- Run `agent.py` as a subprocess with a question that requires a tool.
+- Parse the stdout JSON.
+- Check that `tool_calls` is non-empty and contains the expected tool name.
+- Check that the answer is reasonable.
 
 Example test questions:
 
@@ -171,34 +140,20 @@ Commit:
 test: add regression tests for system agent tools
 ```
 
-### 1.9. Deploy to your VM
+### 5. Deployment
 
 Deploy the updated agent to your VM.
 
-1. Push your branch and pull on the VM.
-2. Make sure both `.env.agent.secret` (LLM key) and `.env.docker.secret` (backend API key) are configured.
-3. Make sure the backend is running and reachable from `agent.py`.
+Make sure:
 
-4. Verify the agent can query the API:
+- Both `.env.agent.secret` (LLM key) and `.env.docker.secret` (backend API key) are configured.
+- The backend is running and reachable from `agent.py`.
 
-   ```terminal
-   python agent.py "How many items are in the database?"
-   ```
+### 6. Benchmark
 
-   You should see `query_api` in the tool_calls and a numeric answer.
+Run `python run_eval.py` — it now includes system questions on top of wiki questions. When a question fails, the benchmark shows a **feedback hint** that guides you without revealing the exact expected answer.
 
-### 1.10. Finish the task
-
-1. [Create a PR](../../../wiki/git-workflow.md#create-a-pr) with your changes.
-2. [Get a PR review](../../../wiki/git-workflow.md#get-a-pr-review) and complete the subsequent steps in the `Git workflow`.
-
-### 1.11. Check the task using the autochecker
-
-[Check the task using the autochecker `Telegram` bot](../../../wiki/autochecker.md#check-the-task-using-the-autochecker-bot).
-
----
-
-## 2. Acceptance criteria
+## Acceptance criteria
 
 - [ ] Issue has the correct title.
 - [ ] `plans/task-2.md` exists with the implementation plan (committed before code).
@@ -208,7 +163,7 @@ Deploy the updated agent to your VM.
 - [ ] The agent answers data-dependent questions with plausible values.
 - [ ] `AGENT.md` documents the `query_api` tool and system prompt updates.
 - [ ] 5 tool-calling regression tests exist and pass.
-- [ ] The agent works on the VM via `SSH`.
+- [ ] The agent works on the VM via SSH.
 - [ ] The benchmark passes all Task 1 and Task 2 questions locally.
 - [ ] PR is approved and merged.
 - [ ] Issue is closed by the PR.

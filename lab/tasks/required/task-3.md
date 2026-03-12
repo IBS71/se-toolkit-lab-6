@@ -1,77 +1,62 @@
 # Pass the Benchmark
 
-<h4>Time</h4>
+Iterate on your agent until it passes the evaluation benchmark.
 
-~120 min
+## [Git workflow](../../../wiki/git-workflow.md)
 
-<h4>Purpose</h4>
+1. Create an issue titled `[Task] Pass the Benchmark`.
+2. Pull latest `main` from `origin` and `upstream`.
+3. Create a branch from `main` (e.g., `task/pass-the-benchmark`).
+4. Work on the branch. Commit as you go using [conventional commits](https://www.conventionalcommits.org/) (e.g., `feat:`, `docs:`, `test:`).
+5. Push, create a PR to `main` in **your fork** (not upstream). Link the issue using a keyword (e.g., `Closes #3`).
+6. Get a review from your partner, merge (this closes the issue automatically), delete the branch.
 
-Iterate on your agent until it passes the full evaluation benchmark, including hidden questions that require chaining tools to diagnose bugs from application logs.
+## What you will do
 
-<h4>Context</h4>
+Run the evaluation benchmark, examine failures, fix your agent, and repeat. The benchmark tests your agent with questions about the course material and your deployed system.
 
-Your agent can read docs and query the API. Now it needs to handle harder questions: multi-step challenges where the agent must find an error in the application logs, trace it to the source file, identify the bug, and suggest a fix. These require chaining tools (query logs → read source → reason about fix). The autochecker tests additional hidden questions beyond what `run_eval.py` shows — you need a genuinely working agent, not hard-coded answers.
-
-<h4>Table of contents</h4>
-
-- [1. Steps](#1-steps)
-  - [1.1. Follow the `Git workflow`](#11-follow-the-git-workflow)
-  - [1.2. Create a `Lab Task` issue](#12-create-a-lab-task-issue)
-  - [1.3. Run the benchmark and write a plan](#13-run-the-benchmark-and-write-a-plan)
-  - [1.4. Iterate on the agent](#14-iterate-on-the-agent)
-  - [1.5. Update documentation](#15-update-documentation)
-  - [1.6. Update tests](#16-update-tests)
-  - [1.7. Deploy to your VM](#17-deploy-to-your-vm)
-  - [1.8. Finish the task](#18-finish-the-task)
-  - [1.9. Check the task using the autochecker](#19-check-the-task-using-the-autochecker)
-- [2. Acceptance criteria](#2-acceptance-criteria)
-
-## 1. Steps
-
-### 1.1. Follow the `Git workflow`
-
-Follow the [`Git workflow`](../../../wiki/git-workflow.md) to complete this task.
-
-### 1.2. Create a `Lab Task` issue
-
-Title: `[Task] Pass the Benchmark`
-
-### 1.3. Run the benchmark and write a plan
-
-1. Run the full benchmark:
-
-   ```terminal
-   python run_eval.py
-   ```
-
-2. Create `plans/task-3.md`. Document:
-
-   - Your current score (e.g., "18/26 passed").
-   - The first few failures and your diagnosis of each.
-   - Your strategy for improving the agent.
-
-Commit:
-
-```text
-docs: add benchmark iteration plan
-```
-
-### 1.4. Iterate on the agent
-
-Run the benchmark, examine failures, fix your agent, and repeat.
+You cannot see the questions upfront — you discover them by running the eval. Each failed question shows you what went wrong. Fix it, re-run, and move on to the next one.
 
 ```
 run eval → see failure → diagnose → fix agent → re-run → next failure → ...
 ```
 
-When a question fails, the benchmark shows a feedback hint:
+> **Note:** The autochecker bot tests your agent with additional hidden questions not present in `run_eval.py`. These include multi-step challenges that require chaining tools: finding errors in application logs, tracing them to source files, and suggesting fixes. You need a genuinely working agent — not hard-coded answers.
+
+## How to run the benchmark
+
+Run `run_eval.py` from the project root:
+
+```bash
+python run_eval.py
+```
+
+It reads your autochecker credentials from `.env` / `.env.docker.secret` (`AUTOCHECKER_API_URL`, `AUTOCHECKER_EMAIL`, `AUTOCHECKER_PASSWORD`) — same ones you configured during setup.
+
+The script:
+
+1. Fetches one question at a time from the autochecker API.
+2. Runs `python agent.py "question"` locally.
+3. Checks the answer against the expected result.
+4. On pass: prints green, moves to the next question.
+5. On fail: prints red with a feedback hint, stops.
 
 ```
-  ✗ [22/26] Compare how the ETL pipeline handles failures vs the API endpoints.
-    feedback: Read both the ETL code and the API router code, then compare their error handling.
+  ✓ [1/26] How do you resolve a merge conflict?
+  ✓ [2/26] What is a Docker volume used for?
+  ✓ [3/26] What framework does the backend use?
+
+  ✗ [4/26] You change your Python code and run 'docker compose up -d'...
+    feedback: Think about when Docker rebuilds the image vs reuses the old one.
+
+3/26 passed
 ```
 
-Use this debugging workflow:
+Fix the failing question, then run `python run_eval.py` again.
+
+## Debugging workflow
+
+When a question fails, diagnose the root cause:
 
 | Symptom | Likely cause | Fix |
 |---------|-------------|-----|
@@ -82,8 +67,30 @@ Use this debugging workflow:
 | Agent times out | Too many tool calls or slow LLM | Reduce max iterations, try a faster model |
 | Answer is close but doesn't match | Phrasing doesn't contain expected keyword | Adjust system prompt to be more precise |
 
-> [!NOTE]
-> The autochecker bot tests your agent with additional hidden questions not present in `run_eval.py`. These include multi-step challenges that require chaining tools: finding errors in application logs, tracing them to source files, and suggesting fixes. A well-built agent with good tools and prompts will handle these naturally — you don't need to know the exact questions.
+## Deliverables
+
+### 1. Plan (`plans/task-3.md`)
+
+Before iterating, create `plans/task-3.md`. Run the benchmark once and document:
+
+- Your current score (e.g., "12/26 passed").
+- The first few failures and your diagnosis of each.
+- Your strategy for improving the agent.
+
+Commit:
+
+```text
+docs: add benchmark iteration plan
+```
+
+### 2. Agent improvements (update `agent.py`)
+
+Iterate on your agent until `run_eval.py` passes all local questions. Common improvements:
+
+- Expand or refine the system prompt.
+- Improve tool descriptions so the LLM calls the right tool.
+- Fix tool implementations (path handling, error cases, response parsing).
+- Handle edge cases (empty responses, timeout, malformed data).
 
 Commit as you go. Example:
 
@@ -93,7 +100,7 @@ fix: handle empty file in read_file tool
 feat: add retry logic for LLM API rate limits
 ```
 
-### 1.5. Update documentation
+### 3. Documentation (update `AGENT.md`)
 
 Update `AGENT.md` with:
 
@@ -107,7 +114,7 @@ Commit:
 docs: update agent documentation with benchmark results
 ```
 
-### 1.6. Update tests
+### 4. Tests
 
 Update your regression tests to cover any new edge cases you discovered during iteration.
 
@@ -117,39 +124,19 @@ Commit:
 test: update regression tests with benchmark edge cases
 ```
 
-### 1.7. Deploy to your VM
+### 5. Deployment
 
 Deploy the final agent to your VM. The autochecker bot will run the full benchmark including hidden questions.
 
-1. Push your branch and pull on the VM.
-2. Verify the agent passes locally on the VM:
-
-   ```terminal
-   cd ~/se-toolkit-lab-6
-   python agent.py "What framework does the backend use?"
-   ```
-
 You need at least **75%** of all questions (shared + hidden) to pass.
 
-### 1.8. Finish the task
-
-1. [Create a PR](../../../wiki/git-workflow.md#create-a-pr) with your changes.
-2. [Get a PR review](../../../wiki/git-workflow.md#get-a-pr-review) and complete the subsequent steps in the `Git workflow`.
-
-### 1.9. Check the task using the autochecker
-
-[Check the task using the autochecker `Telegram` bot](../../../wiki/autochecker.md#check-the-task-using-the-autochecker-bot).
-
----
-
-## 2. Acceptance criteria
+## Acceptance criteria
 
 - [ ] Issue has the correct title.
 - [ ] `plans/task-3.md` exists with the initial diagnosis and strategy.
 - [ ] `run_eval.py` passes all local questions.
-- [ ] The autochecker bot benchmark passes at least 75%.
 - [ ] `AGENT.md` documents the final architecture and lessons learned (at least 200 words).
 - [ ] Regression tests are updated.
-- [ ] The agent works on the VM via `SSH`.
+- [ ] The agent passes the autochecker bot benchmark (≥75%).
 - [ ] PR is approved and merged.
 - [ ] Issue is closed by the PR.
