@@ -19,7 +19,7 @@ import httpx
 from dotenv import load_dotenv
 
 # Maximum number of tool calls allowed per question
-MAX_TOOL_CALLS = 10
+MAX_TOOL_CALLS = 15
 
 # System prompt for the system agent
 SYSTEM_PROMPT = """You are a documentation and system assistant with access to three tools:
@@ -36,8 +36,9 @@ To answer questions:
 
 2. For source code questions (e.g., "What framework does the backend use?"):
    - Use list_files to explore the backend/ directory
-   - Use read_file to read the actual source code files (e.g., backend/app/run.py)
+   - Use read_file to read the main source code files (backend/app/main.py, backend/app/run.py)
    - Look at imports to identify frameworks
+   - IMPORTANT: Read backend/app/main.py to find the framework - it contains the FastAPI app initialization
 
 3. For data/API questions (e.g., "How many items are in the database?"):
    - Use query_api to fetch real data
@@ -54,12 +55,13 @@ To answer questions:
 
 Important:
 - Use read_file to read actual file contents, not just list_files
-- For code questions, read the main files (e.g., backend/app/run.py, backend/app/routers/*.py)
+- For code questions, read the main files (e.g., backend/app/main.py, backend/app/routers/*.py)
 - When list_files returns entries, construct full paths by combining the directory path with the entry name (e.g., if you listed 'backend' and see 'app', use 'backend/app' for the next call)
 - For questions asking about "all" or "list" items, make sure to examine ALL relevant files before answering
+- For complex questions (e.g., "explain the journey", "trace the path"), read ALL relevant configuration files: docker-compose.yml, Caddyfile, Dockerfile, main.py
 - Include a source field when referencing wiki or code files (can list multiple sources)
 - Stop calling tools once you have found the answer
-- Maximum 10 tool calls allowed per question
+- Maximum 15 tool calls allowed per question
 - If you cannot find the answer, say so and provide the closest relevant information
 """
 
