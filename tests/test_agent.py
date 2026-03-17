@@ -152,3 +152,104 @@ class TestDocumentationAgent:
         # Check that source field exists
         assert "source" in data, "Missing 'source' field"
         assert isinstance(data["source"], str), "'source' must be a string"
+
+
+class TestSystemAgent:
+    """Test suite for system agent with query_api tool."""
+
+    def test_backend_framework_question_uses_read_file(self):
+        """
+        Test that asking about backend framework triggers read_file tool.
+
+        This test verifies:
+        - Agent reads source code to identify the framework
+        - Answer contains 'FastAPI'
+        - source field contains backend path
+        """
+        question = "What Python web framework does this project's backend use?"
+
+        result = run_agent(question)
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse JSON output
+        output_lines = result.stdout.strip().split("\n")
+        json_output = output_lines[-1]
+
+        try:
+            data = json.loads(json_output)
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid JSON output: {e}\nOutput: {json_output}")
+
+        # Check required fields
+        assert "answer" in data, "Missing 'answer' field"
+        assert isinstance(data["answer"], str), "'answer' must be a string"
+        assert len(data["answer"].strip()) > 0, "'answer' must not be empty"
+
+        # Check that answer mentions FastAPI
+        assert "FastAPI" in data["answer"], "Answer should mention FastAPI"
+
+        assert "tool_calls" in data, "Missing 'tool_calls' field"
+        assert isinstance(data["tool_calls"], list), "'tool_calls' must be an array"
+
+        # Check that read_file was used
+        tool_names = [call.get("tool") for call in data["tool_calls"]]
+        assert "read_file" in tool_names, "Expected read_file to be called"
+
+        # Check that source field contains backend path
+        assert "source" in data, "Missing 'source' field"
+        assert isinstance(data["source"], str), "'source' must be a string"
+        assert "backend" in data["source"], "Source should reference backend directory"
+
+    def test_database_count_question_uses_query_api(self):
+        """
+        Test that asking about database count triggers query_api tool.
+
+        This test verifies:
+        - Agent queries the API to get data
+        - Answer contains a number
+        - tool_calls contains query_api with correct args
+        """
+        question = "How many items are in the database?"
+
+        result = run_agent(question)
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse JSON output
+        output_lines = result.stdout.strip().split("\n")
+        json_output = output_lines[-1]
+
+        try:
+            data = json.loads(json_output)
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid JSON output: {e}\nOutput: {json_output}")
+
+        # Check required fields
+        assert "answer" in data, "Missing 'answer' field"
+        assert isinstance(data["answer"], str), "'answer' must be a string"
+        assert len(data["answer"].strip()) > 0, "'answer' must not be empty"
+
+        assert "tool_calls" in data, "Missing 'tool_calls' field"
+        assert isinstance(data["tool_calls"], list), "'tool_calls' must be an array"
+
+        # Check that query_api was used
+        tool_names = [call.get("tool") for call in data["tool_calls"]]
+        assert "query_api" in tool_names, "Expected query_api to be called"
+
+        # Check that query_api was called with correct method and path
+        query_api_calls = [
+            call for call in data["tool_calls"] if call.get("tool") == "query_api"
+        ]
+        assert len(query_api_calls) > 0, "Expected at least one query_api call"
+        
+        api_call = query_api_calls[0]
+        assert api_call.get("args", {}).get("method") == "GET", "Expected GET method"
+        assert "/items" in api_call.get("args", {}).get("path", ""), "Expected /items path"
+
+        # Check that answer contains a number
+        import re
+        numbers = re.findall(r'\d+', data["answer"])
+        assert len(numbers) > 0, "Answer should contain a number"
