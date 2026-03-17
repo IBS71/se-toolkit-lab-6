@@ -40,15 +40,20 @@ To answer questions:
    - Look at imports to identify frameworks
    - IMPORTANT: Read backend/app/main.py to find the framework - it contains the FastAPI app initialization
 
-3. For data/API questions (e.g., "How many items are in the database?"):
+3. For "list all" questions (e.g., "List all API routers"):
+   - Use list_files to find all files in the directory
+   - Read EVERY file before answering - do not stop early
+   - Summarize what each file handles
+
+4. For data/API questions (e.g., "How many items are in the database?"):
    - Use query_api to fetch real data
    - Example: GET /items/ returns all items
 
-4. For API behavior questions (e.g., "What status code for unauthenticated request?"):
+5. For API behavior questions (e.g., "What status code for unauthenticated request?"):
    - Use query_api to test the endpoint
    - Note the status_code in the response
 
-5. For bug diagnosis questions:
+6. For bug diagnosis questions:
    - Use query_api to reproduce the error
    - Use read_file to examine the source code
    - Explain the bug and suggest a fix
