@@ -66,3 +66,89 @@ class TestAgentOutput:
 
         assert "tool_calls" in data, "Missing 'tool_calls' field in output"
         assert isinstance(data["tool_calls"], list), "'tool_calls' must be an array"
+
+
+class TestDocumentationAgent:
+    """Test suite for documentation agent with tool calling."""
+
+    def test_merge_conflict_question_uses_read_file(self):
+        """
+        Test that asking about merge conflicts triggers read_file tool.
+
+        This test verifies:
+        - Agent uses tools to find answers in the wiki
+        - read_file is called when looking for specific information
+        - source field contains wiki path
+        """
+        question = "How do you resolve a merge conflict?"
+
+        result = run_agent(question)
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse JSON output
+        output_lines = result.stdout.strip().split("\n")
+        json_output = output_lines[-1]
+
+        try:
+            data = json.loads(json_output)
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid JSON output: {e}\nOutput: {json_output}")
+
+        # Check required fields
+        assert "answer" in data, "Missing 'answer' field"
+        assert isinstance(data["answer"], str), "'answer' must be a string"
+        assert len(data["answer"].strip()) > 0, "'answer' must not be empty"
+
+        assert "tool_calls" in data, "Missing 'tool_calls' field"
+        assert isinstance(data["tool_calls"], list), "'tool_calls' must be an array"
+
+        # Check that read_file was used
+        tool_names = [call.get("tool") for call in data["tool_calls"]]
+        assert "read_file" in tool_names, "Expected read_file to be called"
+
+        # Check that source field exists and contains wiki path
+        assert "source" in data, "Missing 'source' field"
+        assert isinstance(data["source"], str), "'source' must be a string"
+        assert "wiki/" in data["source"], "Source should contain wiki path"
+
+    def test_wiki_listing_question_uses_list_files(self):
+        """
+        Test that asking about wiki files triggers list_files tool.
+
+        This test verifies:
+        - Agent uses list_files to discover directory contents
+        - Tool calls are recorded with args and results
+        """
+        question = "What files are in the wiki directory?"
+
+        result = run_agent(question)
+
+        # Check exit code
+        assert result.returncode == 0, f"Agent failed: {result.stderr}"
+
+        # Parse JSON output
+        output_lines = result.stdout.strip().split("\n")
+        json_output = output_lines[-1]
+
+        try:
+            data = json.loads(json_output)
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Invalid JSON output: {e}\nOutput: {json_output}")
+
+        # Check required fields
+        assert "answer" in data, "Missing 'answer' field"
+        assert isinstance(data["answer"], str), "'answer' must be a string"
+        assert len(data["answer"].strip()) > 0, "'answer' must not be empty"
+
+        assert "tool_calls" in data, "Missing 'tool_calls' field"
+        assert isinstance(data["tool_calls"], list), "'tool_calls' must be an array"
+
+        # Check that list_files was used
+        tool_names = [call.get("tool") for call in data["tool_calls"]]
+        assert "list_files" in tool_names, "Expected list_files to be called"
+
+        # Check that source field exists
+        assert "source" in data, "Missing 'source' field"
+        assert isinstance(data["source"], str), "'source' must be a string"
