@@ -456,8 +456,14 @@ def run_agentic_loop(question: str, config: dict) -> dict:
             # Execute each tool call
             for tool_call in tool_calls:
                 tool_name = tool_call["function"]["name"]
-                tool_args = json.loads(tool_call["function"]["arguments"])
                 tool_id = tool_call["id"]
+                
+                # Parse tool arguments with error handling
+                args_str = tool_call["function"].get("arguments", "{}")
+                try:
+                    tool_args = json.loads(args_str) if args_str else {}
+                except json.JSONDecodeError:
+                    tool_args = {}
 
                 print(f"Executing tool: {tool_name}({tool_args})", file=sys.stderr)
 
