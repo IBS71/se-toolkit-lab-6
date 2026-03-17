@@ -58,7 +58,8 @@ Important:
 - For code questions, read the main files (e.g., backend/app/main.py, backend/app/routers/*.py)
 - When list_files returns entries, construct full paths by combining the directory path with the entry name (e.g., if you listed 'backend' and see 'app', use 'backend/app' for the next call)
 - For questions asking about "all" or "list" items, make sure to examine ALL relevant files before answering
-- For complex questions (e.g., "explain the journey", "trace the path"), read ALL relevant configuration files: docker-compose.yml, Caddyfile, Dockerfile, main.py
+- For complex questions (e.g., "explain the journey", "trace the path"), read ALL relevant configuration files: docker-compose.yml, caddy/Caddyfile, Dockerfile (in project root), backend/app/main.py
+- Note: Dockerfile is in the project root, not in backend/
 - Include a source field when referencing wiki or code files (can list multiple sources)
 - Stop calling tools once you have found the answer
 - Maximum 15 tool calls allowed per question
